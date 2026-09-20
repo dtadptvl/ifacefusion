@@ -30,7 +30,7 @@ enum ProcessorID: String, CaseIterable, Identifiable, Codable {
 }
 
 struct ProcessorSettings {
-    var faceSwapWeight = 0.50, faceEnhanceBlend = 0.80, ageDirection = 0.0
+    var faceSwapWeight = 0.50, deepSwapMorph = 100.0, faceEnhanceBlend = 0.80, ageDirection = 0.0
     var expressionFactor = 80.0, backgroundOpacity = 0.0, colourBlend = 1.0
     var frameEnhanceBlend = 0.80, faceEditSmile = 0.0, faceEditEyeOpen = 0.0
     var frameScale = 2
