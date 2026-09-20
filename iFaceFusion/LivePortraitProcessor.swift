@@ -91,7 +91,7 @@ actor LivePortraitProcessor {
 
     func editFace(
         image: UIImage,
-        smile: Double
+        settings: ProcessorSettings
     ) async throws -> UIImage {
         let featureURL = try await modelURL(role: "feature_extractor")
         let motionURL = try await modelURL(role: "motion_extractor")
@@ -109,7 +109,7 @@ actor LivePortraitProcessor {
         let feature = try await extractFeature(modelURL: featureURL, image: crop)
         var motion = try await extractMotion(modelURL: motionURL, image: crop)
 
-        let rotation = eulerRotation(
+        let targetRotation = eulerRotation(
             pitch: motion.pitch,
             yaw: motion.yaw,
             roll: motion.roll
@@ -117,19 +117,81 @@ actor LivePortraitProcessor {
         let targetPoints = transformMotion(
             motion.motionPoints,
             expression: motion.expression,
-            rotation: rotation,
+            rotation: targetRotation,
             scale: motion.scale,
             translation: motion.translation
         )
 
-        applySmile(&motion.expression, amount: Float(max(-1, min(1, smile))))
-        let editedPoints = transformMotion(
+        applyGaze(
+            &motion.expression,
+            horizontal: Float(clampUnit(settings.faceEditGazeHorizontal)),
+            vertical: Float(clampUnit(settings.faceEditGazeVertical))
+        )
+        applyGrim(&motion.expression, amount: Float(clampUnit(settings.faceEditMouthGrim)))
+        applyMouthPosition(
+            &motion.expression,
+            horizontal: Float(clampUnit(settings.faceEditMouthHorizontal)),
+            vertical: Float(clampUnit(settings.faceEditMouthVertical))
+        )
+        applyPout(&motion.expression, amount: Float(clampUnit(settings.faceEditMouthPout)))
+        applyPurse(&motion.expression, amount: Float(clampUnit(settings.faceEditMouthPurse)))
+        applySmile(&motion.expression, amount: Float(clampUnit(settings.faceEditSmile)))
+        applyEyebrow(&motion.expression, amount: Float(clampUnit(settings.faceEditEyebrow)))
+
+        let editedRotation = eulerRotation(
+            pitch: limitedAngle(
+                base: motion.pitch,
+                proposed: motion.pitch + Float(-20 * clampUnit(settings.faceEditHeadPitch)),
+                normalMin: -30,
+                normalMax: 30
+            ),
+            yaw: limitedAngle(
+                base: motion.yaw,
+                proposed: motion.yaw + Float(-60 * clampUnit(settings.faceEditHeadYaw)),
+                normalMin: -60,
+                normalMax: 60
+            ),
+            roll: limitedAngle(
+                base: motion.roll,
+                proposed: motion.roll + Float(15 * clampUnit(settings.faceEditHeadRoll)),
+                normalMin: -20,
+                normalMax: 20
+            )
+        )
+
+        var editedPoints = transformMotion(
             motion.motionPoints,
             expression: motion.expression,
-            rotation: rotation,
+            rotation: editedRotation,
             scale: motion.scale,
             translation: motion.translation
         )
+
+        let eyeAmount = Float(clampUnit(settings.faceEditEyeOpen))
+        if eyeAmount != 0 {
+            let eyeURL = try await modelURL(role: "eye_retargeter")
+            let eyeDelta = try await retargetEye(
+                modelURL: eyeURL,
+                targetPoints: targetPoints,
+                leftRatio: Float(geometry.leftEyeOpenRatio),
+                rightRatio: Float(geometry.rightEyeOpenRatio),
+                amount: eyeAmount
+            )
+            add(&editedPoints, eyeDelta)
+        }
+
+        let lipAmount = Float(clampUnit(settings.faceEditLipOpen))
+        if lipAmount != 0 {
+            let lipURL = try await modelURL(role: "lip_retargeter")
+            let lipDelta = try await retargetLip(
+                modelURL: lipURL,
+                targetPoints: targetPoints,
+                lipRatio: Float(geometry.lipOpenRatio),
+                amount: lipAmount
+            )
+            add(&editedPoints, lipDelta)
+        }
+
         let stitched = try await stitch(
             modelURL: stitchURL,
             source: editedPoints,
