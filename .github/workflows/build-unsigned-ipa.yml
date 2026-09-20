@@ -3,6 +3,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: ifacefusion-ios-build
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: macos-15
