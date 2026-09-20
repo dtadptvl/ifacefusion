@@ -1,47 +1,77 @@
 # iFaceFusion
 
-iFaceFusion is a native iOS still-image face processing app derived from the processing behavior and model catalog of [FaceFusion](https://github.com/facefusion/facefusion).
+iFaceFusion is a native SwiftUI still-image application that ports relevant FaceFusion 3.9.0 processing behaviour to iOS without carrying over its Python/CLI/Gradio architecture.
 
 ## Scope
 
-- Native SwiftUI application for iPhone 16 Pro Max.
-- Still images only.
-- Exactly one source face and one target face.
-- On-device inference.
-- Models are downloaded on first use and cached for offline use.
-- Multiple compatible processors can run in one pipeline.
-- Target resolution is preserved unless Frame Enhancer is selected.
-- Save to Photos and Share are supported.
+- iPhone-only app targeting iOS 18 and iPhone 16 Pro Max.
+- Still images only. No video, webcam/live, or audio workflow.
+- Source and Target are validated to contain exactly one face.
+- Multiple enabled processors run sequentially with one Process action.
+- Processing is on-device.
+- Models are not bundled in the IPA. They download on first use, are CRC32-verified against FaceFusion's published hash files, and are cached under Application Support for later offline use.
+- Original Target pixel resolution is preserved by face/background/colour processors. Frame Enhance intentionally outputs 2× resolution.
+- Results support Save to Photos and the iOS Share Sheet.
 
-## Architecture
+## Native architecture
 
-- **SwiftUI** for the app UI.
-- **Vision** for single-face detection and five-point landmarks.
-- **ONNX Runtime** for FaceFusion-compatible ONNX / DFM inference.
-- **Core Image / Accelerate** for image preprocessing, blending and compositing.
-- **URLSession** for resumable model downloads.
-- Model cache lives under Application Support and is excluded from iCloud backup.
+- SwiftUI + PhotosUI: mobile interface and image selection.
+- Vision: single-face validation and facial landmarks.
+- ONNX Runtime for iOS: ONNX and FaceFusion/DeepFaceLive DFM model inference, with Core ML execution provider requested where supported.
+- Core Image/UIKit: warping, compositing, colour operations, masks, and pixel-exact tiled image work.
+- XcodeGen: reproducible Xcode project generation.
 
-The app intentionally does not port FaceFusion's Python, CLI, Gradio, video, webcam or audio layers.
+The FaceFusion normalized ArcFace/FFHQ/DFL warp templates and processor-specific preprocessing are ported where applicable rather than using a generic face crop.
 
-## Build
+## Still-image processors
 
-Open `iFaceFusion.xcodeproj` in Xcode 16 or newer and build the `iFaceFusion` scheme for an iOS device.
+| Processor | Native path / selected model |
+| --- | --- |
+| Face Swap | HyperSwap 1a 256 + ArcFace W600K R50 |
+| Deep Swap | DeepFaceLive DFM, default upstream `iperov/elon_musk_224` |
+| Face Enhance | GPEN BFR 512 |
+| Age | FairFace age classification + FRAN |
+| Expression Restore | LivePortrait feature/motion/generator |
+| Face Edit | LivePortrait feature/motion/retarget/stitch/generator |
+| Background Remove | MODNet |
+| Colourise | DeOldify Stable |
+| Frame Enhance | Real-ESRGAN x2 FP16, tiled |
 
-Command-line unsigned archive:
+Lip Sync is intentionally excluded because it requires audio. Face Debugger is diagnostic UI rather than a result processor and is not included in the normal processing pipeline.
+
+## Build and unsigned IPA
+
+No Apple account, certificate, or provisioning profile is required for the CI build.
 
 ```sh
-./scripts/build_unsigned_ipa.sh
+brew install xcodegen
+python3 scripts/generate_icon.py
+xcodegen generate
+xcodebuild \
+  -project iFaceFusion.xcodeproj \
+  -scheme iFaceFusion \
+  -configuration Release \
+  -sdk iphoneos \
+  -destination 'generic/platform=iOS' \
+  -derivedDataPath build/DerivedData \
+  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_REQUIRED=NO \
+  CODE_SIGN_IDENTITY="" \
+  build
+
+mkdir -p Payload
+cp -R build/DerivedData/Build/Products/Release-iphoneos/iFaceFusion.app Payload/
+zip -qry iFaceFusion-unsigned.ipa Payload
 ```
 
-The script uses `CODE_SIGNING_ALLOWED=NO` and writes `artifacts/iFaceFusion-unsigned.ipa`.
+The GitHub Actions workflow performs these steps and publishes `iFaceFusion-unsigned.ipa` as a build artifact.
 
-## Models and licensing
+## Verification boundary
 
-No ML model is bundled in the IPA. Models are fetched from FaceFusion's published model assets only when a selected processor requires them.
+CI verifies dependency resolution, a Release device build for generic iOS, unsigned packaging, and absence of a signing authority. This repository has not been benchmarked on a physical iPhone 16 Pro Max from the current automation environment. Model choices therefore use upstream behaviour, model size, memory-conscious tiling, and iOS runtime compatibility as the feasibility basis rather than claiming physical-device performance measurements.
 
-See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for upstream attribution and model licensing notes.
+## Licensing
 
-## Upstream reference
+See `THIRD_PARTY_NOTICES.md`. Model terms differ and can include research/non-commercial restrictions. Models remain external downloads and are not redistributed inside the IPA.
 
-Implementation was based on FaceFusion 3.9.0-era upstream behavior, including its normalized warp templates, processor defaults, and model metadata. iFaceFusion is not affiliated with or endorsed by FaceFusion.
+iFaceFusion is independent and is not affiliated with or endorsed by FaceFusion.
