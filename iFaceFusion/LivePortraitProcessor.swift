@@ -427,4 +427,173 @@ actor LivePortraitProcessor {
             add(7, 1, 0.0045 * amount)
         }
     }
+
+    private func retargetEye(
+        modelURL: URL,
+        targetPoints: [Float],
+        leftRatio: Float,
+        rightRatio: Float,
+        amount: Float
+    ) async throws -> [Float] {
+        guard let inputName = try await engine.inputNames(modelURL: modelURL).first else {
+            throw InferenceError.io
+        }
+        var values = targetPoints
+        values.append(leftRatio)
+        values.append(rightRatio)
+        values.append(amount < 0 ? 0 : 0.6)
+        let outputs = try await engine.runFloatModel(
+            modelURL: modelURL,
+            inputs: [inputName: FloatTensor(values: values, shape: [1, values.count])]
+        )
+        guard let tensor = outputs.values.first else {
+            throw InferenceError.io
+        }
+        return Array(tensor.values.prefix(63)).map { $0 * abs(amount) }
+    }
+
+    private func retargetLip(
+        modelURL: URL,
+        targetPoints: [Float],
+        lipRatio: Float,
+        amount: Float
+    ) async throws -> [Float] {
+        guard let inputName = try await engine.inputNames(modelURL: modelURL).first else {
+            throw InferenceError.io
+        }
+        var values = targetPoints
+        values.append(lipRatio)
+        values.append(amount < 0 ? 0 : 1)
+        let outputs = try await engine.runFloatModel(
+            modelURL: modelURL,
+            inputs: [inputName: FloatTensor(values: values, shape: [1, values.count])]
+        )
+        guard let tensor = outputs.values.first else {
+            throw InferenceError.io
+        }
+        return Array(tensor.values.prefix(63)).map { $0 * abs(amount) }
+    }
+
+    private func add(_ target: inout [Float], _ delta: [Float]) {
+        for index in 0..<min(target.count, delta.count) {
+            target[index] += delta[index]
+        }
+    }
+
+    private func clampUnit(_ value: Double) -> Double {
+        max(-1, min(1, value))
+    }
+
+    private func limitedAngle(
+        base: Float,
+        proposed: Float,
+        normalMin: Float,
+        normalMax: Float
+    ) -> Float {
+        let lower = base < 0 ? min(base, normalMin) : normalMin
+        let upper = base >= 0 ? max(base, normalMax) : normalMax
+        return max(lower, min(upper, proposed))
+    }
+
+    private func applyEyebrow(_ expression: inout [Float], amount: Float) {
+        func add(_ p: Int, _ a: Int, _ v: Float) {
+            expression[p * 3 + a] += v
+        }
+        if amount > 0 {
+            add(1, 1, 0.015 * amount)
+            add(2, 1, -0.020 * amount)
+        } else {
+            add(1, 0, -0.015 * amount)
+            add(2, 0, 0.020 * amount)
+            add(1, 1, 0.005 * amount)
+            add(2, 1, -0.005 * amount)
+        }
+    }
+
+    private func applyGaze(
+        _ expression: inout [Float],
+        horizontal: Float,
+        vertical: Float
+    ) {
+        func add(_ p: Int, _ a: Int, _ v: Float) {
+            expression[p * 3 + a] += v
+        }
+        if horizontal > 0 {
+            add(11, 0, 0.015 * horizontal)
+            add(15, 0, 0.020 * horizontal)
+        } else {
+            add(11, 0, 0.020 * horizontal)
+            add(15, 0, 0.015 * horizontal)
+        }
+        add(1, 1, 0.0025 * vertical)
+        add(2, 1, -0.0025 * vertical)
+        add(11, 1, -0.010 * vertical)
+        add(13, 1, -0.005 * vertical)
+        add(15, 1, -0.010 * vertical)
+        add(16, 1, -0.005 * vertical)
+    }
+
+    private func applyGrim(_ expression: inout [Float], amount: Float) {
+        func add(_ p: Int, _ a: Int, _ v: Float) {
+            expression[p * 3 + a] += v
+        }
+        if amount > 0 {
+            add(17, 2, -0.005 * amount)
+            add(19, 2, 0.010 * amount)
+            add(20, 1, -0.060 * amount)
+            add(20, 2, -0.030 * amount)
+        } else {
+            add(19, 1, -0.050 * amount)
+            add(19, 2, -0.020 * amount)
+            add(20, 2, -0.030 * amount)
+        }
+    }
+
+    private func applyMouthPosition(
+        _ expression: inout [Float],
+        horizontal: Float,
+        vertical: Float
+    ) {
+        func add(_ p: Int, _ a: Int, _ v: Float) {
+            expression[p * 3 + a] += v
+        }
+        add(19, 0, 0.050 * horizontal)
+        add(20, 0, 0.040 * horizontal)
+        if vertical > 0 {
+            add(19, 1, -0.040 * vertical)
+            add(20, 1, -0.020 * vertical)
+        } else {
+            add(19, 1, -0.050 * vertical)
+            add(20, 1, -0.040 * vertical)
+        }
+    }
+
+    private func applyPout(_ expression: inout [Float], amount: Float) {
+        func add(_ p: Int, _ a: Int, _ v: Float) {
+            expression[p * 3 + a] += v
+        }
+        if amount > 0 {
+            add(19, 1, -0.022 * amount)
+        } else {
+            add(19, 1, 0.022 * amount)
+        }
+        add(19, 2, 0.025 * amount)
+        add(20, 2, -0.002 * amount)
+    }
+
+    private func applyPurse(_ expression: inout [Float], amount: Float) {
+        func add(_ p: Int, _ a: Int, _ v: Float) {
+            expression[p * 3 + a] += v
+        }
+        if amount > 0 {
+            add(19, 1, -0.040 * amount)
+            add(19, 2, -0.020 * amount)
+        } else {
+            add(14, 1, -0.020 * amount)
+            add(17, 2, 0.010 * amount)
+            add(19, 2, -0.015 * amount)
+            add(20, 2, -0.002 * amount)
+        }
+    }
+
 }
