@@ -55,7 +55,7 @@ actor ProcessingPipeline {
             case .faceEdit:
                 image = try await livePortrait.editFace(
                     image: image,
-                    smile: settings.faceEditSmile
+                    settings: settings
                 )
             case .deepSwap:
                 image = try await deepSwapProcessor.process(
