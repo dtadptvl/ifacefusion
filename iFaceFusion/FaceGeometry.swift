@@ -1,7 +1,13 @@
 import UIKit
 import Vision
 
-struct FaceGeometry { let boundingBox:CGRect; let landmarks:[CGPoint] }
+struct FaceGeometry {
+    let boundingBox: CGRect
+    let landmarks: [CGPoint]
+    let leftEyeOpenRatio: CGFloat
+    let rightEyeOpenRatio: CGFloat
+    let lipOpenRatio: CGFloat
+}
 enum FaceGeometryError: LocalizedError {
     case noFace,multipleFaces,missingLandmarks
     var errorDescription:String? {
@@ -30,7 +36,23 @@ enum FaceGeometryDetector {
             let r=lip.filter{$0.x>cx}.min(by:{$0.y<$1.y}) ?? lip[lip.count/2]
             let n=px(nose.max(by:{$0.y<$1.y}) ?? nose[nose.count/2])
             let box=CGRect(x:face.boundingBox.minX*w,y:(1-face.boundingBox.maxY)*h,width:face.boundingBox.width*w,height:face.boundingBox.height*h)
-            return FaceGeometry(boundingBox:box,landmarks:[px(avg(le)),px(avg(re)),n,l,r])
+            func openness(_ points: [CGPoint]) -> CGFloat {
+                let converted = points.map(px)
+                guard
+                    let minX = converted.map(\.x).min(),
+                    let maxX = converted.map(\.x).max(),
+                    let minY = converted.map(\.y).min(),
+                    let maxY = converted.map(\.y).max()
+                else { return 0 }
+                return (maxY - minY) / max(maxX - minX, 0.000001)
+            }
+            return FaceGeometry(
+                boundingBox: box,
+                landmarks: [px(avg(le)), px(avg(re)), n, l, r],
+                leftEyeOpenRatio: openness(le),
+                rightEyeOpenRatio: openness(re),
+                lipOpenRatio: openness(lips)
+            )
         }.value
     }
 }
