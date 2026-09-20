@@ -211,7 +211,12 @@ private struct AdvancedView: View {
             }
             if selected.contains(.expressionRestore) {
                 LabeledContent("Expression restore") {
-                    Slider(value: $settings.expressionFactor, in: 0...1)
+                    Slider(value: $settings.expressionFactor, in: 0...100, step: 1)
+                }
+            }
+            if selected.contains(.faceEdit) {
+                LabeledContent("Smile") {
+                    Slider(value: $settings.faceEditSmile, in: -1...1)
                 }
             }
             if selected.contains(.colourise) {
