@@ -23,7 +23,7 @@ enum ModelCatalog {
         .init(id: "fran", file: "fran.onnx", release: "models-3.6.0", processor: .age, vendor: "ry-lu", license: "MIT", approximateMB: 125, role: "age_modifier"),
         .init(id: "fairface", file: "fairface.onnx", release: "models-3.0.0", processor: .age, vendor: "dchen236", license: "CC-BY-4.0", approximateMB: 82, role: "face_classifier"),
         .init(id: "modnet", file: "modnet.onnx", release: "models-3.5.0", processor: .backgroundRemove, vendor: "ZHKKKe", license: "Apache-2.0", approximateMB: 25, role: "background_remover"),
-        .init(id: "ddcolor", file: "ddcolor.onnx", release: "models-3.0.0", processor: .colourise, vendor: "piddnad", license: "Apache-2.0", approximateMB: 935, role: "frame_colorizer"),
+        .init(id: "deoldify_stable", file: "deoldify_stable.onnx", release: "models-3.0.0", processor: .colourise, vendor: "jantic", license: "MIT", approximateMB: 833, role: "frame_colorizer"),
         .init(id: "real_esrgan_x2_fp16", file: "real_esrgan_x2_fp16.onnx", release: "models-3.0.0", processor: .frameEnhance, vendor: "xinntao", license: "BSD-3-Clause", approximateMB: 35, role: "frame_enhancer"),
         .init(id: "live_portrait_feature_extractor", file: "live_portrait_feature_extractor.onnx", release: "models-3.0.0", processor: .faceEdit, vendor: "KwaiVGI", license: "MIT", approximateMB: 4, role: "feature_extractor"),
         .init(id: "live_portrait_motion_extractor", file: "live_portrait_motion_extractor.onnx", release: "models-3.0.0", processor: .faceEdit, vendor: "KwaiVGI", license: "MIT", approximateMB: 108, role: "motion_extractor"),
