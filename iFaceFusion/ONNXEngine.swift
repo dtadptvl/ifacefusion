@@ -214,6 +214,51 @@ actor ONNXEngine {
         return try TensorImage.image(data: data, shape: info.shape, range: 0...1)
     }
 
+
+    func runFloatModel(
+        modelURL: URL,
+        inputs: [String: FloatTensor],
+        requestedOutputs: [String]? = nil
+    ) throws -> [String: FloatTensor] {
+        let session = try session(path: modelURL.path)
+        var ortInputs: [String: ORTValue] = [:]
+        for (name, tensor) in inputs {
+            ortInputs[name] = try makeTensor(
+                tensor.values,
+                shape: tensor.shape.map { NSNumber(value: $0) }
+            )
+        }
+
+        let outputNames = try requestedOutputs ?? session.outputNames()
+        let outputs = try session.run(
+            withInputs: ortInputs,
+            outputNames: Set(outputNames),
+            runOptions: nil
+        )
+
+        var result: [String: FloatTensor] = [:]
+        for name in outputNames {
+            guard let value = outputs[name] else {
+                continue
+            }
+            let info = try value.tensorTypeAndShapeInfo()
+            let data = try value.tensorData()
+            result[name] = FloatTensor(
+                values: floatsFromData(data),
+                shape: info.shape.map { $0.intValue }
+            )
+        }
+        return result
+    }
+
+    func inputNames(modelURL: URL) throws -> [String] {
+        try session(path: modelURL.path).inputNames()
+    }
+
+    func outputNames(modelURL: URL) throws -> [String] {
+        try session(path: modelURL.path).outputNames()
+    }
+
     func faceSwap(
         modelURL: URL,
         sourceEmbedding: [Float],
@@ -265,6 +310,11 @@ actor ONNXEngine {
         let pointer = data.bytes.bindMemory(to: Float.self, capacity: count)
         return Array(UnsafeBufferPointer(start: pointer, count: count))
     }
+}
+
+struct FloatTensor: Sendable {
+    let values: [Float]
+    let shape: [Int]
 }
 
 enum InferenceError: LocalizedError {
