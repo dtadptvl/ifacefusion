@@ -199,6 +199,11 @@ private struct AdvancedView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Advanced").font(.title2.bold())
+            if selected.contains(.faceSwap) {
+                LabeledContent("Face swap identity") {
+                    Slider(value: $settings.faceSwapWeight, in: 0...1)
+                }
+            }
             if selected.contains(.deepSwap) {
                 LabeledContent("Deep swap morph") {
                     Slider(value: $settings.deepSwapMorph, in: 0...100, step: 1)
@@ -263,6 +268,11 @@ private struct AdvancedView: View {
                     LabeledContent("Head roll") {
                         Slider(value: $settings.faceEditHeadRoll, in: -1...1)
                     }
+                }
+            }
+            if selected.contains(.backgroundRemove) {
+                LabeledContent("Background opacity") {
+                    Slider(value: $settings.backgroundOpacity, in: 0...1)
                 }
             }
             if selected.contains(.colourise) {
