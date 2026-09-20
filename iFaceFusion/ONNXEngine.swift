@@ -120,6 +120,100 @@ actor ONNXEngine {
         return floatsFromData(data)
     }
 
+
+    func classifyAge(
+        modelURL: URL,
+        image: UIImage,
+        inputSize: CGSize
+    ) throws -> Int {
+        let session = try session(path: modelURL.path)
+        guard let inputName = try session.inputNames().first else {
+            throw InferenceError.io
+        }
+        let outputNames = try session.outputNames()
+        guard !outputNames.isEmpty else {
+            throw InferenceError.io
+        }
+
+        let floats = try TensorImage.chwStandardized(
+            image,
+            size: inputSize,
+            mean: [0.485, 0.456, 0.406],
+            standardDeviation: [0.229, 0.224, 0.225]
+        )
+        let input = try makeTensor(
+            floats,
+            shape: [1, 3, NSNumber(value: Int(inputSize.height)), NSNumber(value: Int(inputSize.width))]
+        )
+        let outputs = try session.run(
+            withInputs: [inputName: input],
+            outputNames: Set(outputNames),
+            runOptions: nil
+        )
+
+        let ageName: String
+        if let named = outputNames.first(where: { $0.lowercased().contains("age") }) {
+            ageName = named
+        } else if outputNames.count >= 3 {
+            ageName = outputNames[2]
+        } else {
+            throw InferenceError.unsupported("FairFace did not expose an age output.")
+        }
+
+        guard let ageValue = outputs[ageName] else {
+            throw InferenceError.io
+        }
+        let data = try ageValue.tensorData()
+        guard data.length >= MemoryLayout<Int64>.size else {
+            throw InferenceError.io
+        }
+        let pointer = data.bytes.bindMemory(to: Int64.self, capacity: 1)
+        return Int(pointer[0])
+    }
+
+    func modifyAge(
+        modelURL: URL,
+        image: UIImage,
+        inputSize: CGSize,
+        direction: [Float]
+    ) throws -> UIImage {
+        let session = try session(path: modelURL.path)
+        let inputNames = try session.inputNames()
+        guard
+            let targetName = inputNames.first(where: { $0 == "target" }),
+            let backgroundName = inputNames.first(where: { $0 == "target_with_background" }),
+            let directionName = inputNames.first(where: { $0 == "direction" }),
+            let outputName = try session.outputNames().first
+        else {
+            throw InferenceError.unsupported("FRAN exposed an unexpected input layout.")
+        }
+
+        let imageFloats = try TensorImage.chw(image, size: inputSize, range: 0...1)
+        let imageTensor = try makeTensor(
+            imageFloats,
+            shape: [1, 3, NSNumber(value: Int(inputSize.height)), NSNumber(value: Int(inputSize.width))]
+        )
+        let directionTensor = try makeTensor(
+            direction,
+            shape: [NSNumber(value: direction.count)]
+        )
+        let outputs = try session.run(
+            withInputs: [
+                targetName: imageTensor,
+                backgroundName: imageTensor,
+                directionName: directionTensor
+            ],
+            outputNames: Set([outputName]),
+            runOptions: nil
+        )
+        guard let output = outputs[outputName] else {
+            throw InferenceError.io
+        }
+        let info = try output.tensorTypeAndShapeInfo()
+        let data = try output.tensorData()
+        return try TensorImage.image(data: data, shape: info.shape, range: 0...1)
+    }
+
     func faceSwap(
         modelURL: URL,
         sourceEmbedding: [Float],
@@ -228,6 +322,29 @@ enum TensorImage {
         return output
     }
 
+
+
+    static func chwStandardized(
+        _ image: UIImage,
+        size: CGSize,
+        mean: [Float],
+        standardDeviation: [Float]
+    ) throws -> [Float] {
+        guard mean.count == 3, standardDeviation.count == 3 else {
+            throw InferenceError.io
+        }
+        let raw = try chw(image, size: size, range: 0...1)
+        let plane = Int(size.width * size.height)
+        var output = raw
+        for channel in 0..<3 {
+            let offset = channel * plane
+            for index in 0..<plane {
+                output[offset + index] =
+                    (output[offset + index] - mean[channel]) / standardDeviation[channel]
+            }
+        }
+        return output
+    }
 
     static func mask(data: NSMutableData, shape: [NSNumber]) throws -> UIImage {
         guard shape.count >= 3 else {
