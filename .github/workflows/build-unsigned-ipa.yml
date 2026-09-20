@@ -8,6 +8,8 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - name: Generate app icon
+        run: python3 scripts/generate_icon.py
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate project
