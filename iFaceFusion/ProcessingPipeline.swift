@@ -23,8 +23,21 @@ actor ProcessingPipeline {
             _ = try await FaceGeometryDetector.detect(in: source)
         }
 
+        let preferredOrder: [ProcessorID] = [
+            .faceSwap,
+            .deepSwap,
+            .faceEnhance,
+            .age,
+            .expressionRestore,
+            .faceEdit,
+            .colourise,
+            .frameEnhance,
+            .backgroundRemove
+        ]
+        let orderedProcessors = preferredOrder.filter { processors.contains($0) }
+
         var image = target
-        for processor in processors {
+        for processor in orderedProcessors {
             progress(processor.title)
             switch processor {
             case .faceSwap:
