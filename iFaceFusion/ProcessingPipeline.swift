@@ -296,11 +296,57 @@ actor ProcessingPipeline {
     }
 
     private func age(_ image: UIImage, direction: Double) async throws -> UIImage {
-        let asset = try asset(.age, role: "age_modifier")
-        _ = try await models.ensure(asset)
-        throw PipelineError.specialised(
-            "FRAN is cached successfully, but its direction-conditioned target/background inputs are not yet enabled in this build."
+        let modifierAsset = try asset(.age, role: "age_modifier")
+        let classifierAsset = try asset(.age, role: "face_classifier")
+        let modifierURL = try await models.ensure(modifierAsset)
+        let classifierURL = try await models.ensure(classifierAsset)
+
+        let geometry = try await FaceGeometryDetector.detect(in: image)
+        let (classifierCrop, _) = try ImageWarp.crop(
+            image,
+            geometry: geometry,
+            template: .arcface112v2,
+            size: CGSize(width: 224, height: 224)
         )
+        let ageClass = try await engine.classifyAge(
+            modelURL: classifierURL,
+            image: classifierCrop,
+            inputSize: CGSize(width: 224, height: 224)
+        )
+        let currentAge = ageMidpoint(for: ageClass)
+        let destinationAge = max(0, min(100, currentAge + direction))
+        let directionTensor: [Float] = [
+            Float(currentAge / 100),
+            Float(destinationAge / 100)
+        ]
+
+        let (crop, warp) = try ImageWarp.crop(
+            image,
+            geometry: geometry,
+            template: .ffhq512,
+            size: CGSize(width: 1024, height: 1024)
+        )
+        let modified = try await engine.modifyAge(
+            modelURL: modifierURL,
+            image: crop,
+            inputSize: CGSize(width: 1024, height: 1024),
+            direction: directionTensor
+        )
+        return try ImageWarp.paste(modified, onto: image, warp: warp)
+    }
+
+    private func ageMidpoint(for ageClass: Int) -> Double {
+        switch ageClass {
+        case 0: return 0.5
+        case 1: return 5.5
+        case 2: return 14.5
+        case 3: return 24.5
+        case 4: return 34.5
+        case 5: return 44.5
+        case 6: return 54.5
+        case 7: return 64.5
+        default: return 84.5
+        }
     }
 
     private func normalized(_ values: [Float]) -> [Float] {
