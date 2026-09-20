@@ -151,7 +151,7 @@ actor ProcessingPipeline {
     private func removeBackground(_ image: UIImage, opacity: Double) async throws -> UIImage {
         let asset = try asset(.backgroundRemove, role: "background_remover")
         let url = try await models.ensure(asset)
-        let matte = try await engine.runImage(
+        let matte = try await engine.runMask(
             modelURL: url,
             image: image,
             inputSize: CGSize(width: 512, height: 512),
