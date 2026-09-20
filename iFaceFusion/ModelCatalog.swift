@@ -21,6 +21,7 @@ enum ModelCatalog {
         .init(id: "arcface_w600k_r50", file: "arcface_w600k_r50.onnx", release: "models-3.0.0", processor: .faceSwap, vendor: "InsightFace", license: "Non-Commercial", approximateMB: 166, role: "face_recognizer"),
         .init(id: "gpen_bfr_512", file: "gpen_bfr_512.onnx", release: "models-3.0.0", processor: .faceEnhance, vendor: "yangxy", license: "Apache-2.0", approximateMB: 271, role: "face_enhancer"),
         .init(id: "fran", file: "fran.onnx", release: "models-3.6.0", processor: .age, vendor: "ry-lu", license: "MIT", approximateMB: 125, role: "age_modifier"),
+        .init(id: "fairface", file: "fairface.onnx", release: "models-3.0.0", processor: .age, vendor: "dchen236", license: "CC-BY-4.0", approximateMB: 82, role: "face_classifier"),
         .init(id: "modnet", file: "modnet.onnx", release: "models-3.5.0", processor: .backgroundRemove, vendor: "ZHKKKe", license: "Apache-2.0", approximateMB: 25, role: "background_remover"),
         .init(id: "ddcolor", file: "ddcolor.onnx", release: "models-3.0.0", processor: .colourise, vendor: "piddnad", license: "Apache-2.0", approximateMB: 935, role: "frame_colorizer"),
         .init(id: "real_esrgan_x2_fp16", file: "real_esrgan_x2_fp16.onnx", release: "models-3.0.0", processor: .frameEnhance, vendor: "xinntao", license: "BSD-3-Clause", approximateMB: 35, role: "frame_enhancer"),
