@@ -254,8 +254,12 @@ actor ProcessingPipeline {
         let scaledSeam = seam * scale
         let tileCore = core * scale
         let tilesPerRow = paddedWidth / core
+        let rendererFormat = UIGraphicsImageRendererFormat()
+        rendererFormat.scale = 1
+        rendererFormat.opaque = false
         let renderer = UIGraphicsImageRenderer(
-            size: CGSize(width: mergedWidth, height: mergedHeight)
+            size: CGSize(width: mergedWidth, height: mergedHeight),
+            format: rendererFormat
         )
         let merged = renderer.image { _ in
             for (index, tile) in enhancedTiles.enumerated() {
@@ -448,7 +452,10 @@ extension UIImage {
     }
 
     func drawn(canvas: CGSize, origin: CGPoint) -> UIImage {
-        UIGraphicsImageRenderer(size: canvas).image { _ in
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = false
+        return UIGraphicsImageRenderer(size: canvas, format: format).image { _ in
             draw(in: CGRect(origin: origin, size: pixelSize))
         }
     }
@@ -488,7 +495,10 @@ extension UIImage {
     }
 
     func resized(to targetSize: CGSize) -> UIImage {
-        UIGraphicsImageRenderer(size: targetSize).image { _ in
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = false
+        return UIGraphicsImageRenderer(size: targetSize, format: format).image { _ in
             draw(in: CGRect(origin: .zero, size: targetSize))
         }
     }
