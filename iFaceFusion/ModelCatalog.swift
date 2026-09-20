@@ -14,6 +14,19 @@ struct ModelAsset: Identifiable, Hashable {
     var remoteURL: URL {
         directURL ?? URL(string: "https://github.com/facefusion/facefusion-assets/releases/download/\(release)/\(file)")!
     }
+
+    var hashRemoteURL: URL {
+        if let directURL {
+            return directURL
+                .deletingPathExtension()
+                .appendingPathExtension("hash")
+        }
+        let hashFile = URL(fileURLWithPath: file)
+            .deletingPathExtension()
+            .appendingPathExtension("hash")
+            .lastPathComponent
+        return URL(string: "https://github.com/facefusion/facefusion-assets/releases/download/\(release)/\(hashFile)")!
+    }
 }
 
 enum ModelCatalog {
