@@ -93,8 +93,8 @@ extension UIImage {
         if imageOrientation == .up, let cgImage { return cgImage }
 
         let pixelSize = CGSize(
-            width: CGFloat(cgImage?.width ?? Int(size.width * scale)),
-            height: CGFloat(cgImage?.height ?? Int(size.height * scale))
+            width: max(1, round(size.width * scale)),
+            height: max(1, round(size.height * scale))
         )
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
