@@ -285,14 +285,39 @@ actor ProcessingPipeline {
     private func colourise(_ image: UIImage, blend: Double) async throws -> UIImage {
         let asset = try asset(.colourise, role: "frame_colorizer")
         let url = try await models.ensure(asset)
+        let grayscale = image.monochrome()
         let coloured = try await engine.runImage(
             modelURL: url,
-            image: image,
+            image: grayscale,
             inputSize: CGSize(width: 256, height: 256),
-            normalization: 0...1
+            normalization: 0...255,
+            outputRange: 0...255
         )
         let restoredSize = coloured.resized(to: image.pixelSize)
-        return ImageBlend.mix(original: image, processed: restoredSize, amount: blend)
+
+        guard
+            let originalCG = image.normalizedCGImage,
+            let colourCG = restoredSize.normalizedCGImage
+        else {
+            return restoredSize
+        }
+        let originalCI = CIImage(cgImage: originalCG)
+        let colourCI = CIImage(cgImage: colourCG)
+        let luminancePreserved = CIFilter(
+            name: "CIColorBlendMode",
+            parameters: [
+                kCIInputImageKey: colourCI,
+                kCIInputBackgroundImageKey: originalCI
+            ]
+        )?.outputImage ?? colourCI
+        guard let outputCG = ImageWarp.context.createCGImage(
+            luminancePreserved,
+            from: originalCI.extent
+        ) else {
+            return restoredSize
+        }
+        let output = UIImage(cgImage: outputCG)
+        return ImageBlend.mix(original: image, processed: output, amount: blend)
     }
 
     private func age(_ image: UIImage, direction: Double) async throws -> UIImage {
@@ -427,6 +452,21 @@ extension UIImage {
             return size
         }
         return CGSize(width: cgImage.width, height: cgImage.height)
+    }
+
+    func monochrome() -> UIImage {
+        guard let cgImage = normalizedCGImage else {
+            return self
+        }
+        let input = CIImage(cgImage: cgImage)
+        let output = input.applyingFilter(
+            "CIColorControls",
+            parameters: [kCIInputSaturationKey: 0]
+        )
+        guard let rendered = ImageWarp.context.createCGImage(output, from: input.extent) else {
+            return self
+        }
+        return UIImage(cgImage: rendered)
     }
 
     func resized(maxLongEdge: CGFloat) -> UIImage {
