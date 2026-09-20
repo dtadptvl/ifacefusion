@@ -220,8 +220,49 @@ private struct AdvancedView: View {
                 }
             }
             if selected.contains(.faceEdit) {
-                LabeledContent("Smile") {
-                    Slider(value: $settings.faceEditSmile, in: -1...1)
+                Group {
+                    LabeledContent("Eyebrow") {
+                        Slider(value: $settings.faceEditEyebrow, in: -1...1)
+                    }
+                    LabeledContent("Gaze horizontal") {
+                        Slider(value: $settings.faceEditGazeHorizontal, in: -1...1)
+                    }
+                    LabeledContent("Gaze vertical") {
+                        Slider(value: $settings.faceEditGazeVertical, in: -1...1)
+                    }
+                    LabeledContent("Eye open") {
+                        Slider(value: $settings.faceEditEyeOpen, in: -1...1)
+                    }
+                    LabeledContent("Lip open") {
+                        Slider(value: $settings.faceEditLipOpen, in: -1...1)
+                    }
+                    LabeledContent("Mouth grim") {
+                        Slider(value: $settings.faceEditMouthGrim, in: -1...1)
+                    }
+                    LabeledContent("Mouth horizontal") {
+                        Slider(value: $settings.faceEditMouthHorizontal, in: -1...1)
+                    }
+                    LabeledContent("Mouth vertical") {
+                        Slider(value: $settings.faceEditMouthVertical, in: -1...1)
+                    }
+                    LabeledContent("Mouth pout") {
+                        Slider(value: $settings.faceEditMouthPout, in: -1...1)
+                    }
+                    LabeledContent("Mouth purse") {
+                        Slider(value: $settings.faceEditMouthPurse, in: -1...1)
+                    }
+                    LabeledContent("Smile") {
+                        Slider(value: $settings.faceEditSmile, in: -1...1)
+                    }
+                    LabeledContent("Head pitch") {
+                        Slider(value: $settings.faceEditHeadPitch, in: -1...1)
+                    }
+                    LabeledContent("Head yaw") {
+                        Slider(value: $settings.faceEditHeadYaw, in: -1...1)
+                    }
+                    LabeledContent("Head roll") {
+                        Slider(value: $settings.faceEditHeadRoll, in: -1...1)
+                    }
                 }
             }
             if selected.contains(.colourise) {
