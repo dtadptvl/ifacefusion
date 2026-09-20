@@ -4,6 +4,7 @@ import CoreImage
 actor ProcessingPipeline {
     private let models = ModelStore.shared
     private let engine = ONNXEngine.shared
+    private let livePortrait = LivePortraitProcessor()
 
     func process(
         source: UIImage?,
@@ -45,12 +46,15 @@ actor ProcessingPipeline {
             case .age:
                 image = try await age(image, direction: settings.ageDirection)
             case .expressionRestore:
-                throw PipelineError.specialised(
-                    "Expression Restore models are available, but the LivePortrait multi-tensor motion pipeline is not yet enabled in this build."
+                image = try await livePortrait.restoreExpression(
+                    originalTarget: target,
+                    currentImage: image,
+                    factorPercent: settings.expressionFactor
                 )
             case .faceEdit:
-                throw PipelineError.specialised(
-                    "Face Edit models are available, but the LivePortrait multi-tensor edit pipeline is not yet enabled in this build."
+                image = try await livePortrait.editFace(
+                    image: image,
+                    smile: settings.faceEditSmile
                 )
             case .deepSwap:
                 throw PipelineError.specialised(
