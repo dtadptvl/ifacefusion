@@ -229,7 +229,12 @@ actor ONNXEngine {
             )
         }
 
-        let outputNames = try requestedOutputs ?? session.outputNames()
+        let outputNames: [String]
+        if let requestedOutputs {
+            outputNames = requestedOutputs
+        } else {
+            outputNames = try session.outputNames()
+        }
         let outputs = try session.run(
             withInputs: ortInputs,
             outputNames: Set(outputNames),
