@@ -389,9 +389,9 @@ actor LivePortraitProcessor {
         let p = pitch * .pi / 180
         let y = yaw * .pi / 180
         let r = roll * .pi / 180
-        let cp = cos(p), sp = sin(p)
-        let cy = cos(y), sy = sin(y)
-        let cr = cos(r), sr = sin(r)
+        let cp = cosf(p), sp = sinf(p)
+        let cy = cosf(y), sy = sinf(y)
+        let cr = cosf(r), sr = sinf(r)
 
         return [
             cr * cy,
