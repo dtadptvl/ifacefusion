@@ -5,6 +5,7 @@ actor ProcessingPipeline {
     private let models = ModelStore.shared
     private let engine = ONNXEngine.shared
     private let livePortrait = LivePortraitProcessor()
+    private let deepSwapProcessor = DeepSwapProcessor()
 
     func process(
         source: UIImage?,
@@ -57,8 +58,9 @@ actor ProcessingPipeline {
                     smile: settings.faceEditSmile
                 )
             case .deepSwap:
-                throw PipelineError.specialised(
-                    "Deep Swap uses DFM models rather than FaceFusion's ONNX processor path and is not compatible with this runtime."
+                image = try await deepSwapProcessor.process(
+                    image: image,
+                    morphPercent: settings.deepSwapMorph
                 )
             }
         }
