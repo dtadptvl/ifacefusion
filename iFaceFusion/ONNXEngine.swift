@@ -61,6 +61,39 @@ actor ONNXEngine {
         return try TensorImage.image(data: bytes, shape: info.shape, range: outputRange)
     }
 
+
+    func runMask(
+        modelURL: URL,
+        image: UIImage,
+        inputSize: CGSize,
+        normalization: ClosedRange<Float>
+    ) throws -> UIImage {
+        let session = try session(path: modelURL.path)
+        guard
+            let inputName = try session.inputNames().first,
+            let outputName = try session.outputNames().first
+        else {
+            throw InferenceError.io
+        }
+
+        let floats = try TensorImage.chw(image, size: inputSize, range: normalization)
+        let input = try makeTensor(
+            floats,
+            shape: [1, 3, NSNumber(value: Int(inputSize.height)), NSNumber(value: Int(inputSize.width))]
+        )
+        let outputs = try session.run(
+            withInputs: [inputName: input],
+            outputNames: Set([outputName]),
+            runOptions: nil
+        )
+        guard let output = outputs[outputName] else {
+            throw InferenceError.io
+        }
+        let info = try output.tensorTypeAndShapeInfo()
+        let bytes = try output.tensorData()
+        return try TensorImage.mask(data: bytes, shape: info.shape)
+    }
+
     func embedding(modelURL: URL, image: UIImage, inputSize: CGSize) throws -> [Float] {
         let session = try session(path: modelURL.path)
         guard
@@ -193,6 +226,46 @@ enum TensorImage {
             }
         }
         return output
+    }
+
+
+    static func mask(data: NSMutableData, shape: [NSNumber]) throws -> UIImage {
+        guard shape.count >= 3 else {
+            throw InferenceError.io
+        }
+
+        let height = shape[shape.count - 2].intValue
+        let width = shape[shape.count - 1].intValue
+        let count = data.length / MemoryLayout<Float>.size
+        guard count >= width * height else {
+            throw InferenceError.io
+        }
+
+        let pointer = data.bytes.bindMemory(to: Float.self, capacity: count)
+        var pixels = [UInt8](repeating: 0, count: width * height)
+        for index in 0..<(width * height) {
+            pixels[index] = UInt8(max(0, min(255, Int(pointer[index] * 255))))
+        }
+
+        guard
+            let provider = CGDataProvider(data: Data(pixels) as CFData),
+            let cgImage = CGImage(
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bitsPerPixel: 8,
+                bytesPerRow: width,
+                space: CGColorSpaceCreateDeviceGray(),
+                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue),
+                provider: provider,
+                decode: nil,
+                shouldInterpolate: true,
+                intent: .defaultIntent
+            )
+        else {
+            throw InferenceError.io
+        }
+        return UIImage(cgImage: cgImage)
     }
 
     static func image(
