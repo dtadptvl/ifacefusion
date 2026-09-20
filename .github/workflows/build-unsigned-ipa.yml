@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ifacefusion-ios-build
+  group: ifacefusion-ios-build-v2
   cancel-in-progress: true
 jobs:
   build:
