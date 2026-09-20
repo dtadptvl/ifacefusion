@@ -192,14 +192,94 @@ actor ProcessingPipeline {
     private func enhanceFrame(_ image: UIImage, blend: Double) async throws -> UIImage {
         let asset = try asset(.frameEnhance, role: "frame_enhancer")
         let url = try await models.ensure(asset)
-        let input = image.resized(maxLongEdge: 1024)
-        let enhanced = try await engine.runImage(
-            modelURL: url,
-            image: input,
-            inputSize: input.pixelSize,
-            normalization: 0...1
+
+        let modelTile = 256
+        let pad = 16
+        let seam = 8
+        let scale = 2
+        let core = modelTile - 2 * seam
+
+        let sourceSize = image.pixelSize
+        let sourceWidth = Int(sourceSize.width)
+        let sourceHeight = Int(sourceSize.height)
+        let topPad = pad + seam
+
+        func tailPad(_ length: Int) -> Int {
+            let remainder = (length + 2 * pad) % core
+            return topPad + core - remainder
+        }
+
+        let bottomPad = tailPad(sourceHeight)
+        let rightPad = tailPad(sourceWidth)
+        let paddedWidth = sourceWidth + topPad + rightPad
+        let paddedHeight = sourceHeight + topPad + bottomPad
+
+        let padded = image.drawn(
+            canvas: CGSize(width: paddedWidth, height: paddedHeight),
+            origin: CGPoint(x: topPad, y: topPad)
         )
-        return enhanced
+
+        var enhancedTiles: [UIImage] = []
+        var row = seam
+        while row < paddedHeight - seam {
+            var column = seam
+            while column < paddedWidth - seam {
+                let rect = CGRect(
+                    x: column - seam,
+                    y: row - seam,
+                    width: modelTile,
+                    height: modelTile
+                )
+                let tile = try padded.cropped(to: rect)
+                let enhanced = try await engine.runImage(
+                    modelURL: url,
+                    image: tile,
+                    inputSize: CGSize(width: modelTile, height: modelTile),
+                    normalization: 0...1
+                )
+                enhancedTiles.append(enhanced)
+                column += core
+            }
+            row += core
+        }
+
+        let mergedWidth = paddedWidth * scale
+        let mergedHeight = paddedHeight * scale
+        let scaledSeam = seam * scale
+        let tileCore = core * scale
+        let tilesPerRow = paddedWidth / core
+        let renderer = UIGraphicsImageRenderer(
+            size: CGSize(width: mergedWidth, height: mergedHeight)
+        )
+        let merged = renderer.image { _ in
+            for (index, tile) in enhancedTiles.enumerated() {
+                guard let center = try? tile.cropped(to: CGRect(
+                    x: scaledSeam,
+                    y: scaledSeam,
+                    width: tileCore,
+                    height: tileCore
+                )) else {
+                    continue
+                }
+                let rowIndex = index / tilesPerRow
+                let columnIndex = index % tilesPerRow
+                center.draw(in: CGRect(
+                    x: columnIndex * tileCore,
+                    y: rowIndex * tileCore,
+                    width: tileCore,
+                    height: tileCore
+                ))
+            }
+        }
+
+        let output = try merged.cropped(to: CGRect(
+            x: pad * scale,
+            y: pad * scale,
+            width: sourceWidth * scale,
+            height: sourceHeight * scale
+        ))
+        let originalUpscaled = image.resized(to: output.pixelSize)
+        return ImageBlend.mix(original: originalUpscaled, processed: output, amount: blend)
     }
 
     private func colourise(_ image: UIImage, blend: Double) async throws -> UIImage {
@@ -283,6 +363,19 @@ enum ImageBlend {
 }
 
 extension UIImage {
+    func cropped(to rect: CGRect) throws -> UIImage {
+        guard let cgImage = normalizedCGImage?.cropping(to: rect.integral) else {
+            throw InferenceError.io
+        }
+        return UIImage(cgImage: cgImage)
+    }
+
+    func drawn(canvas: CGSize, origin: CGPoint) -> UIImage {
+        UIGraphicsImageRenderer(size: canvas).image { _ in
+            draw(in: CGRect(origin: origin, size: pixelSize))
+        }
+    }
+
     var pixelSize: CGSize {
         guard let cgImage = normalizedCGImage else {
             return size
