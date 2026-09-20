@@ -9,15 +9,27 @@ struct ModelAsset: Identifiable, Hashable {
     let license: String
     let approximateMB: Int
     let role: String
+    var directURL: URL? = nil
 
     var remoteURL: URL {
-        URL(string: "https://github.com/facefusion/facefusion-assets/releases/download/\(release)/\(file)")!
+        directURL ?? URL(string: "https://github.com/facefusion/facefusion-assets/releases/download/\(release)/\(file)")!
     }
 }
 
 enum ModelCatalog {
     static let assets: [ModelAsset] = [
         .init(id: "hyperswap_1a_256", file: "hyperswap_1a_256.onnx", release: "models-3.3.0", processor: .faceSwap, vendor: "FaceFusion", license: "ResearchRAIL", approximateMB: 384, role: "face_swapper"),
+        .init(
+            id: "iperov_elon_musk_224",
+            file: "elon_musk_224.dfm",
+            release: "",
+            processor: .deepSwap,
+            vendor: "DeepFaceLive / iperov",
+            license: "See upstream model terms",
+            approximateMB: 0,
+            role: "deep_swapper",
+            directURL: URL(string: "https://huggingface.co/facefusion/deepfacelive-models-iperov/resolve/main/elon_musk_224.dfm")
+        ),
         .init(id: "arcface_w600k_r50", file: "arcface_w600k_r50.onnx", release: "models-3.0.0", processor: .faceSwap, vendor: "InsightFace", license: "Non-Commercial", approximateMB: 166, role: "face_recognizer"),
         .init(id: "gpen_bfr_512", file: "gpen_bfr_512.onnx", release: "models-3.0.0", processor: .faceEnhance, vendor: "yangxy", license: "Apache-2.0", approximateMB: 271, role: "face_enhancer"),
         .init(id: "fran", file: "fran.onnx", release: "models-3.6.0", processor: .age, vendor: "ry-lu", license: "MIT", approximateMB: 125, role: "age_modifier"),
@@ -39,9 +51,6 @@ enum ModelCatalog {
                 $0.processor == .faceEdit &&
                 ["feature_extractor", "motion_extractor", "generator"].contains($0.role)
             }
-        }
-        if processor == .deepSwap {
-            return []
         }
         return assets.filter { $0.processor == processor }
     }
