@@ -205,8 +205,8 @@ private struct AdvancedView: View {
                 }
             }
             if selected.contains(.age) {
-                LabeledContent("Age direction") {
-                    Slider(value: $settings.ageDirection, in: -1...1)
+                LabeledContent("Age change") {
+                    Slider(value: $settings.ageDirection, in: -100...100, step: 1)
                 }
             }
             if selected.contains(.expressionRestore) {
