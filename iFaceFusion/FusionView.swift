@@ -199,6 +199,11 @@ private struct AdvancedView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Advanced").font(.title2.bold())
+            if selected.contains(.deepSwap) {
+                LabeledContent("Deep swap morph") {
+                    Slider(value: $settings.deepSwapMorph, in: 0...100, step: 1)
+                }
+            }
             if selected.contains(.faceEnhance) {
                 LabeledContent("Face enhance") {
                     Slider(value: $settings.faceEnhanceBlend, in: 0...1)
